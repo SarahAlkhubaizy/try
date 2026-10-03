@@ -12,31 +12,36 @@ The architecture follows a standard 3-tier model — Frontend, Backend, and Data
 flowchart TB
     Roles[User Roles]
 
-    Roles --> actor1[Visitor]
+    Roles --> actor1[Guest]
     Roles --> actor2[Registered User]
     Roles --> actor3[Admin]
 
-    actor1 --> FE
-    actor2 --> FE
-    actor3 --> FE
+    actor1 --> APP
+    actor2 --> APP
+    actor3 --> ADMIN
 
-    FE["Frontend<br/>Flutter (Mobile App + Admin Web Dashboard)<br/>Browse · Search · Filter · Map · Trail Details · Save · Reviews · Admin"]
+    APP["Mobile App<br/>Flutter<br/>Browse · Search · Filter · Trail Details · Map · My Location · Reviews · Saved · Completed · Profile"]
+    ADMIN["Admin Dashboard<br/>Flutter Web<br/>Manage Trails · Upload GeoJSON Routes · Delete Reviews · Suspend Users"]
 
-    FE -->|REST API| BE
-    FE -->|Map Rendering| MAPS
+    GPS["Device Location<br/>geolocator · Updated periodically while app is open"]
 
-    BE["Backend<br/>Flask (Python) + SQLAlchemy<br/>Auth JWT · Trails · Reviews · Saved Trails · Admin"]
+    GPS -->|Current Location| APP
+    APP -->|REST API| BE
+    ADMIN -->|REST API| BE
+    APP -->|Route · Start Point · My Location| MAPS
+
+    BE["Backend<br/>Flask (Python) + SQLAlchemy<br/>Auth JWT · Users · Trails · Reviews · Saved · Completed · Admin"]
 
     BE -->|SQL Queries| DB
     BE -->|Upload Photos| CLOUD
 
-    DB["MySQL<br/>Users · Trails · Reviews · Saved Trails<br/>Trail Routes as GeoJSON"]
+    DB["MySQL<br/>Users · Trails (GeoJSON Routes) · Reviews · Saved Trails · Completed Trails · Token Blocklist"]
 
     CLOUD["Cloudinary<br/>Trail Photos · CDN"]
 
-    MAPS["Google Maps SDK<br/>Trail Markers · GeoJSON Routes"]
+    MAPS["Google Maps SDK<br/>Trail Routes · Starting Points · Current Location"]
 
-    CLOUD -->|Image URLs| FE
+    CLOUD -->|Image URLs| APP
 ```
 
 ## Component Descriptions
