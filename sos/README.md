@@ -491,49 +491,188 @@
 
 
 
+# 1. System Architecture
+
+## Overview
+
+This document defines the high-level system architecture for **Qimmah (قمة)**, a mobile application for discovering hiking trails across Saudi Arabia.
+
+Qimmah follows a **layered architecture**: the system is divided into five layers, and each layer communicates only with the layer directly below it. This separates the user interface, request handling, business rules, data access, and storage, so each part can be built, tested, and changed independently. The system supports three user roles: **Guest**, **Registered User**, and **Admin**.
+
+## Architecture Diagram
+
 ```mermaid
 flowchart TB
-    subgraph L1["1. Presentation Layer — Flutter"]
+    subgraph L1["Layer 1 · Presentation Layer — Flutter"]
         direction LR
-        APP["📱 Mobile App<br/>Guest · Registered User<br/>Browse · Search · Filter · Map · Reviews · Saved · Completed · Profile"]
-        ADMIN["💻 Admin Dashboard<br/>Flutter Web<br/>Manage Trails · Delete Reviews · Suspend Users"]
+        APP["Mobile App<br/>Guest · Registered User<br/>Browse · Search · Filter · Map · Reviews · Saved · Completed · Profile"]
+        ADMIN["Admin Dashboard (Flutter Web)<br/>Manage Trails · Delete Reviews · Suspend Users"]
     end
 
-    subgraph L2["2. API Layer — Flask REST API"]
+    subgraph L2["Layer 2 · API Layer — Flask REST API"]
         direction LR
         ROUTES["Routes (Flask Blueprints)<br/>/auth · /users · /trails · /reviews · /admin"]
-        AUTH["Auth & Security<br/>JWT · Role Check · Token Blocklist"]
+        SEC["Auth and Security<br/>JWT · Role Check · Token Blocklist"]
     end
 
-    subgraph L3["3. Business Logic Layer — Services"]
+    subgraph L3["Layer 3 · Business Logic Layer — Services"]
         direction LR
+        US["UserService<br/>Register · Login · Logout · Suspend"]
         TS["TrailService<br/>Search · Filter · GeoJSON Validation"]
         RS["ReviewService<br/>Ownership Check · Average Rating"]
-        US["UserService<br/>Register · Login · Suspend"]
     end
 
-    subgraph L4["4. Data Access Layer — SQLAlchemy ORM"]
+    subgraph L4["Layer 4 · Data Access Layer — SQLAlchemy ORM"]
         MODELS["Models<br/>User · Trail · Review · SavedTrail · CompletedTrail · TokenBlocklist"]
     end
 
-    subgraph L5["5. Data Layer"]
+    subgraph L5["Layer 5 · Data Layer"]
         direction LR
-        DB[("🗄️ MySQL<br/>utf8mb4 · GeoJSON in JSON column")]
-        CLOUD[("🖼️ Cloudinary<br/>Trail Photos · CDN")]
+        DB[("MySQL<br/>utf8mb4 · GeoJSON routes in JSON column")]
+        CLOUD[("Cloudinary<br/>Trail Photos · CDN")]
     end
 
-    subgraph EXT["External & Device Services"]
+    subgraph EXT["External and Device Services"]
         direction LR
-        MAPS["🗺️ Google Maps SDK<br/>Routes · Start Points · My Location"]
-        GPS["📍 Device GPS<br/>geolocator"]
+        MAPS["Google Maps SDK<br/>Routes · Start Points · My Location"]
+        GPS["Device GPS<br/>geolocator"]
     end
 
-    L1 -->|"HTTPS · JSON + JWT"| L2
+    L1 -->|HTTPS · JSON + JWT| L2
     L2 --> L3
     L3 --> L4
-    L4 -->|"SQL Queries"| DB
-    L3 -->|"Upload Photos"| CLOUD
-    CLOUD -.->|"Image URLs via CDN"| APP
-    APP -.-> MAPS
-    GPS -.-> APP
+    L4 -->|SQL Queries| DB
+    L3 -->|Upload Photos| CLOUD
+    CLOUD -.->|Image URLs via CDN| APP
+    APP -.->|Draw map| MAPS
+    GPS -.->|Current location| APP
 ```
+
+> Solid arrows show the main request path through the layers. Dashed arrows show services the app uses directly, without going through the backend.
+
+## Layer Descriptions
+
+### Layer 1 · Presentation Layer
+
+| Component | Technology | Role |
+|---|---|---|
+| Mobile App | Flutter | Renders the user interface in Arabic and English. Handles browsing, searching, filtering, trail details, the trail map with the user's current location, reviews, saved and completed trails, and the user profile. Shows a sign-up prompt when a guest tries to save, rate, or review. |
+| Admin Dashboard | Flutter (Web) | Lets the admin add, edit, and delete trails, upload trail photos and GeoJSON route files, delete inappropriate reviews, and suspend users. |
+| Localization | flutter_localizations | Switches the interface between Arabic (right-to-left) and English. |
+| Sharing | share_plus | Shares a trail link through the device's share menu. |
+| Token Storage | flutter_secure_storage | Stores the JWT securely on the device. |
+
+### Layer 2 · API Layer
+
+| Component | Technology | Role |
+|---|---|---|
+| Routes | Flask Blueprints | Receives HTTP requests and returns JSON responses. Organized into modules: Auth, Users, Trails, Reviews, and Admin. |
+| Auth and Security | Flask-JWT-Extended | Verifies the JWT on protected routes, checks the user's role for admin routes, and rejects revoked tokens (token blocklist) and suspended accounts. |
+
+### Layer 3 · Business Logic Layer
+
+| Component | Role |
+|---|---|
+| UserService | Handles registration, login, password hashing (Werkzeug), logout, profile updates, and suspending users. |
+| TrailService | Handles trail search and filtering, adding, editing, and deleting trails, GeoJSON route validation, and photo uploads to Cloudinary. |
+| ReviewService | Handles adding, editing, and deleting reviews, checks review ownership, prevents duplicate reviews, and recalculates each trail's average rating. |
+
+### Layer 4 · Data Access Layer
+
+| Component | Technology | Role |
+|---|---|---|
+| Models | SQLAlchemy ORM | Maps Python classes (User, Trail, Review, SavedTrail, CompletedTrail, TokenBlocklist) to MySQL tables, and builds safe, parameterized SQL queries. |
+
+### Layer 5 · Data Layer
+
+| Component | Technology | Role |
+|---|---|---|
+| Database | MySQL | Stores users, trails, reviews, saved trails, completed trails, and revoked tokens. Uses foreign key constraints for data integrity and utf8mb4 for Arabic text. Each trail's route is stored as GeoJSON in a JSON column. |
+| Image Storage | Cloudinary | Stores trail photos and delivers them to the app via CDN with automatic optimization. |
+
+### External and Device Services
+
+| Component | Technology | Role |
+|---|---|---|
+| Map Service | Google Maps SDK | Displays trails on the map, draws each trail's route with its starting point, and shows the user's current location. |
+| Device Location | geolocator | Reads the user's location with their permission, updating it periodically while the app is open. The location stays on the device and is never sent to the server. |
+
+## Data Flow Through the Layers
+
+Steps describing how data moves through the layers, covering the key use cases defined in the sequence diagrams (Task 3).
+
+### Use Case 1: User Login
+
+| # | Layer | Step |
+|---|---|---|
+| 1 | Presentation | The user enters their email and password, and the app sends a login request over HTTPS. |
+| 2 | API | The Auth route receives the request and passes it to UserService. |
+| 3 | Business Logic | UserService asks the data access layer for the user with this email. |
+| 4 | Data Access → Data | The User model queries MySQL and returns the user record. |
+| 5 | Business Logic | UserService verifies the password hash and checks that the account is not suspended. |
+| 6 | API | The Auth route generates a JWT and returns it to the app. |
+| 7 | Presentation | The app stores the token securely and opens the Home screen, or shows an error message. |
+
+### Use Case 2: Browse, Search, and Filter Trails
+
+| # | Layer | Step |
+|---|---|---|
+| 1 | Presentation | The user (guest or registered) selects a region and difficulty, or searches by name. |
+| 2 | API | The Trails route receives the request (no token needed) and passes the filters to TrailService. |
+| 3 | Business Logic | TrailService builds the search and filter criteria. |
+| 4 | Data Access → Data | The Trail model queries MySQL for matching trails. |
+| 5 | API | The route returns a short summary of each trail as JSON. |
+| 6 | Presentation | The app renders the trail cards, loading photos directly from Cloudinary via CDN. |
+
+### Use Case 3: View Trail Details and Current Location
+
+| # | Layer | Step |
+|---|---|---|
+| 1 | Presentation | The user taps a trail, and the app requests its details. |
+| 2 | API → Business Logic | The Trails route passes the request to TrailService. |
+| 3 | Data Access → Data | The Trail model gets the trail data and GeoJSON route from MySQL. |
+| 4 | API | The route returns the trail details, route, starting point, and safety tips as JSON. |
+| 5 | Presentation + External | The app passes the route and starting point to Google Maps SDK, which draws them on the map. |
+| 6 | Presentation + Device | If the user allows location access, the app reads their location from the device GPS and updates it on the map periodically while the app is open. |
+
+### Use Case 4: Rate and Review a Trail
+
+| # | Layer | Step |
+|---|---|---|
+| 1 | Presentation | The user taps "Add your review". If the user is a guest, the app prompts them to sign up. |
+| 2 | Presentation | The registered user selects a rating (1–5), writes a comment, and the app sends it with the JWT. |
+| 3 | API | Auth and Security verifies the token, and the Reviews route passes the review to ReviewService. |
+| 4 | Business Logic | ReviewService validates the rating and checks that the user has not already reviewed this trail. |
+| 5 | Data Access → Data | The Review model saves the review in MySQL, and the trail's average rating is updated. |
+| 6 | API → Presentation | The route returns the new review, and the app displays it on the trail page. |
+
+## Deployment Architecture
+
+| Environment | Description |
+|---|---|
+| Development | Local machines — each developer runs the Flask API and MySQL locally, and runs the Flutter app on an emulator or device. |
+| Staging | Pre-production environment used for testing before release. |
+| Production | Deployed on a cloud platform (e.g., Render or Railway for the backend and MySQL). The mobile app is distributed as an APK / test build, and the admin dashboard is deployed as a Flutter web app. Secret keys are kept in environment variables on the server. |
+
+## Technical Justifications
+
+Every technology and design decision in this architecture was chosen based on the team's functional requirements, non-functional requirements, and project constraints.
+
+| Decision | Justification |
+|---|---|
+| **Layered Architecture** | Separating the system into layers gives each part one clear responsibility. The team can work on different layers in parallel, test business rules without the interface or database, and change one layer (e.g., the database) without rewriting the others. |
+| **Flutter** (Presentation) | One codebase builds the Android and iOS app and the web admin dashboard, which suits a small student team. Flutter supports both right-to-left (Arabic) and left-to-right (English) layouts, and has official packages for Google Maps and localization. |
+| **Flask** (API + Business Logic) | Builds on the team's Python foundation from the Holberton program. Flask is lightweight and well-suited for building RESTful APIs quickly, and Blueprints keep each module independent. |
+| **SQLAlchemy** (Data Access) | Lets the team work with Python classes instead of raw SQL, and uses parameterized queries that protect against SQL injection. |
+| **MySQL** (Data) | A relational database enforces strong relationships between users, trails, reviews, saved trails, and completed trails, and guarantees data integrity (e.g., a review cannot exist without a valid user and trail). MongoDB was considered but not selected, as it does not enforce relational integrity by default. MySQL's JSON column type still stores GeoJSON routes. |
+| **GeoJSON** | An open standard for geographic data. Routes recorded with GPS tools can be uploaded as files and drawn on the map without conversion, letting hikers compare their location with the route. |
+| **JWT** | Stateless authentication supports role-based access for Guest, Registered User, and Admin. A token blocklist makes logout secure. |
+| **Google Maps SDK** | Reliable map coverage of Saudi Arabia, route lines, and a built-in current-location layer, with an official Flutter package. |
+| **geolocator** | Reads the device location on Android and iOS with permission handling. Updating only while the app is open keeps the feature simple and saves battery. |
+| **Cloudinary** | Free-tier CDN with no credit card required. Images are not lost when the server redeploys, and photos are optimized automatically for mobile. |
+
+## Non-Functional Requirements Addressed
+
+| Requirement | How the Architecture Addresses It |
+|---|---|
+| Performance | Flutter compiles to native code for smooth scrolling and map interaction. Trail lists return short summaries, and full GeoJSON routes
