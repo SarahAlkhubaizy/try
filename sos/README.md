@@ -471,3 +471,69 @@
 | 403 Forbidden | Not allowed (not the owner, not an admin, or account suspended) |
 | 404 Not Found | Resource not found |
 | 409 Conflict | Duplicate (email exists, or trail already saved, completed, or reviewed) |
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+```mermaid
+flowchart TB
+    subgraph L1["1. Presentation Layer — Flutter"]
+        direction LR
+        APP["📱 Mobile App<br/>Guest · Registered User<br/>Browse · Search · Filter · Map · Reviews · Saved · Completed · Profile"]
+        ADMIN["💻 Admin Dashboard<br/>Flutter Web<br/>Manage Trails · Delete Reviews · Suspend Users"]
+    end
+
+    subgraph L2["2. API Layer — Flask REST API"]
+        direction LR
+        ROUTES["Routes (Flask Blueprints)<br/>/auth · /users · /trails · /reviews · /admin"]
+        AUTH["Auth & Security<br/>JWT · Role Check · Token Blocklist"]
+    end
+
+    subgraph L3["3. Business Logic Layer — Services"]
+        direction LR
+        TS["TrailService<br/>Search · Filter · GeoJSON Validation"]
+        RS["ReviewService<br/>Ownership Check · Average Rating"]
+        US["UserService<br/>Register · Login · Suspend"]
+    end
+
+    subgraph L4["4. Data Access Layer — SQLAlchemy ORM"]
+        MODELS["Models<br/>User · Trail · Review · SavedTrail · CompletedTrail · TokenBlocklist"]
+    end
+
+    subgraph L5["5. Data Layer"]
+        direction LR
+        DB[("🗄️ MySQL<br/>utf8mb4 · GeoJSON in JSON column")]
+        CLOUD[("🖼️ Cloudinary<br/>Trail Photos · CDN")]
+    end
+
+    subgraph EXT["External & Device Services"]
+        direction LR
+        MAPS["🗺️ Google Maps SDK<br/>Routes · Start Points · My Location"]
+        GPS["📍 Device GPS<br/>geolocator"]
+    end
+
+    L1 -->|"HTTPS · JSON + JWT"| L2
+    L2 --> L3
+    L3 --> L4
+    L4 -->|"SQL Queries"| DB
+    L3 -->|"Upload Photos"| CLOUD
+    CLOUD -.->|"Image URLs via CDN"| APP
+    APP -.-> MAPS
+    GPS -.-> APP
+```
