@@ -1,4 +1,3 @@
-<img width="2936" height="2658" alt="Browse, Search, and Filter Trails (Guest or Registered User)" src="https://github.com/user-attachments/assets/30003e53-bf69-404d-9038-580efd003008" /># 1. System Architecture
 
 ## Overview
 
