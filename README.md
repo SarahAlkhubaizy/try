@@ -131,6 +131,470 @@ Every technology in this architecture was chosen based on the team's functional 
 
 
 
+# Components, Classes, and Database Design
+
+## 1. Back-end Classes
+
+### User
+
+**Attributes:**
+
+* `id`
+* `name`
+* `email`
+* `password`
+* `role`
+* `language`
+* `currentLocation`
+* `isSuspended`
+
+**Methods:**
+
+* `register()`
+* `login()`
+* `logout()`
+* `updateProfile()`
+* `viewFavorites()`
+* `addFavorite()`
+* `removeFavorite()`
+* `viewMyReviews()`
+* `markTrailAsCompleted()`
+* `viewCompletedTrails()`
+* `getCurrentLocation()`
+
+### Trail
+
+**Attributes:**
+
+* `id`
+* `name`
+* `description`
+* `region`
+* `difficulty`
+* `distance`
+* `estimatedDuration`
+* `images`
+* `startLatitude`
+* `startLongitude`
+* `endLatitude`
+* `endLongitude`
+* `routeCoordinates`
+* `safetyTips`
+* `status`
+* `createdAt`
+
+**Methods:**
+
+* `getDetails()`
+* `getLocation()`
+* `getRoute()`
+* `getSafetyTips()`
+* `isActive()`
+
+### Review
+
+**Attributes:**
+
+* `id`
+* `userId`
+* `trailId`
+* `rating`
+* `comment`
+* `createdAt`
+
+**Methods:**
+
+* `addReview()`
+* `updateReview()`
+* `deleteReview()`
+* `getReview()`
+* `validateRating()`
+
+### Favorite
+
+**Attributes:**
+
+* `userId`
+* `trailId`
+* `createdAt`
+
+**Methods:**
+
+* `addFavorite()`
+* `removeFavorite()`
+* `isFavorite()`
+* `getUserFavorites()`
+
+### CompletedTrail
+
+**Attributes:**
+
+* `userId`
+* `trailId`
+* `completedAt`
+
+**Methods:**
+
+* `markAsCompleted()`
+* `removeCompletedTrail()`
+* `getCompletedTrails()`
+* `isCompleted()`
+
+### TrailService
+
+**Attributes:**
+
+* None
+
+**Methods:**
+
+* `searchByName()`
+* `filterByRegion()`
+* `filterByDifficulty()`
+* `clearFilters()`
+
+### ReviewService
+
+**Attributes:**
+
+* None
+
+**Methods:**
+
+* `getReviews()`
+* `calculateAverageRating()`
+* `deleteInappropriateReview()`
+
+### Admin
+
+Admin inherits from the `User` class and provides additional administrative functions.
+
+**Methods:**
+
+* `addTrail()`
+* `updateTrail()`
+* `deleteTrail()`
+* `uploadTrailImages()`
+* `updateTrailRoute()`
+* `suspendUser()`
+
+---
+
+# 2. UML Class Diagram
+
+```mermaid
+classDiagram
+
+class User {
+    +int id
+    +string name
+    +string email
+    +string password
+    +Role role
+    +Language language
+    +Location currentLocation
+    +boolean isSuspended
+    +register()
+    +login()
+    +logout()
+    +updateProfile()
+    +viewFavorites()
+    +addFavorite()
+    +removeFavorite()
+    +viewMyReviews()
+    +markTrailAsCompleted()
+    +viewCompletedTrails()
+    +getCurrentLocation()
+}
+
+class Admin {
+    +addTrail()
+    +updateTrail()
+    +deleteTrail()
+    +uploadTrailImages()
+    +updateTrailRoute()
+    +suspendUser()
+}
+
+class Trail {
+    +int id
+    +string name
+    +string description
+    +string region
+    +Difficulty difficulty
+    +decimal distance
+    +string estimatedDuration
+    +string images
+    +decimal startLatitude
+    +decimal startLongitude
+    +decimal endLatitude
+    +decimal endLongitude
+    +string routeCoordinates
+    +string safetyTips
+    +Status status
+    +datetime createdAt
+    +getDetails()
+    +getLocation()
+    +getRoute()
+    +getSafetyTips()
+    +isActive()
+}
+
+class Review {
+    +int id
+    +int userId
+    +int trailId
+    +int rating
+    +string comment
+    +datetime createdAt
+    +addReview()
+    +updateReview()
+    +deleteReview()
+    +getReview()
+    +validateRating()
+}
+
+class Favorite {
+    +int userId
+    +int trailId
+    +datetime createdAt
+    +addFavorite()
+    +removeFavorite()
+    +isFavorite()
+    +getUserFavorites()
+}
+
+class CompletedTrail {
+    +int userId
+    +int trailId
+    +datetime completedAt
+    +markAsCompleted()
+    +removeCompletedTrail()
+    +getCompletedTrails()
+    +isCompleted()
+}
+
+class TrailService {
+    +searchByName()
+    +filterByRegion()
+    +filterByDifficulty()
+    +clearFilters()
+}
+
+class ReviewService {
+    +getReviews()
+    +calculateAverageRating()
+    +deleteInappropriateReview()
+}
+
+User <|-- Admin
+
+User "1" --> "0..*" Review : writes
+Trail "1" --> "0..*" Review : receives
+
+User "1" --> "0..*" Favorite : saves
+Trail "1" --> "0..*" Favorite : has
+
+User "1" --> "0..*" CompletedTrail : completes
+Trail "1" --> "0..*" CompletedTrail : has
+
+TrailService ..> Trail : searches and filters
+ReviewService ..> Review : manages
+
+Admin --> Trail : manages
+Admin --> Review : moderates
+```
+
+---
+
+# 3. Database Design
+
+The system uses a relational database with the following tables:
+
+### Users
+
+| Field           | Type    | Key    |
+| --------------- | ------- | ------ |
+| id              | INT     | PK     |
+| name            | VARCHAR |        |
+| email           | VARCHAR | UNIQUE |
+| password        | VARCHAR |        |
+| role            | ENUM    |        |
+| language        | ENUM    |        |
+| currentLocation | VARCHAR |        |
+| isSuspended     | BOOLEAN |        |
+
+### Trails
+
+| Field             | Type     | Key |
+| ----------------- | -------- | --- |
+| id                | INT      | PK  |
+| name              | VARCHAR  |     |
+| description       | TEXT     |     |
+| region            | VARCHAR  |     |
+| difficulty        | ENUM     |     |
+| distance          | DECIMAL  |     |
+| estimatedDuration | VARCHAR  |     |
+| images            | TEXT     |     |
+| startLatitude     | DECIMAL  |     |
+| startLongitude    | DECIMAL  |     |
+| endLatitude       | DECIMAL  |     |
+| endLongitude      | DECIMAL  |     |
+| routeCoordinates  | TEXT     |     |
+| safetyTips        | TEXT     |     |
+| status            | ENUM     |     |
+| createdAt         | DATETIME |     |
+
+### Reviews
+
+| Field     | Type     | Key            |
+| --------- | -------- | -------------- |
+| id        | INT      | PK             |
+| userId    | INT      | FK → Users.id  |
+| trailId   | INT      | FK → Trails.id |
+| rating    | INT      |                |
+| comment   | TEXT     |                |
+| createdAt | DATETIME |                |
+
+### Favorites
+
+| Field     | Type     | Key                |
+| --------- | -------- | ------------------ |
+| userId    | INT      | PK, FK → Users.id  |
+| trailId   | INT      | PK, FK → Trails.id |
+| createdAt | DATETIME |                    |
+
+### CompletedTrails
+
+| Field       | Type     | Key                |
+| ----------- | -------- | ------------------ |
+| userId      | INT      | PK, FK → Users.id  |
+| trailId     | INT      | PK, FK → Trails.id |
+| completedAt | DATETIME |                    |
+
+---
+
+# 4. ER Diagram
+
+```mermaid
+erDiagram
+
+    USERS {
+        INT id PK
+        VARCHAR name
+        VARCHAR email UK
+        VARCHAR password
+        ENUM role
+        ENUM language
+        VARCHAR currentLocation
+        BOOLEAN isSuspended
+    }
+
+    TRAILS {
+        INT id PK
+        VARCHAR name
+        TEXT description
+        VARCHAR region
+        ENUM difficulty
+        DECIMAL distance
+        VARCHAR estimatedDuration
+        TEXT images
+        DECIMAL startLatitude
+        DECIMAL startLongitude
+        DECIMAL endLatitude
+        DECIMAL endLongitude
+        TEXT routeCoordinates
+        TEXT safetyTips
+        ENUM status
+        DATETIME createdAt
+    }
+
+    REVIEWS {
+        INT id PK
+        INT userId FK
+        INT trailId FK
+        INT rating
+        TEXT comment
+        DATETIME createdAt
+    }
+
+    FAVORITES {
+        INT userId PK, FK
+        INT trailId PK, FK
+        DATETIME createdAt
+    }
+
+    COMPLETED_TRAILS {
+        INT userId PK, FK
+        INT trailId PK, FK
+        DATETIME completedAt
+    }
+
+    USERS ||--o{ REVIEWS : writes
+    TRAILS ||--o{ REVIEWS : receives
+
+    USERS ||--o{ FAVORITES : saves
+    TRAILS ||--o{ FAVORITES : has
+
+    USERS ||--o{ COMPLETED_TRAILS : completes
+    TRAILS ||--o{ COMPLETED_TRAILS : has
+```
+
+---
+
+# 5. Front-end Components
+
+The main front-end components are:
+
+* **Home / Trail List**
+
+  * Displays available hiking trails.
+  * Provides access to search and filters.
+
+* **Search Bar**
+
+  * Searches trails by name.
+
+* **Filter Component**
+
+  * Filters trails by region.
+  * Filters trails by difficulty.
+
+* **Saudi Map**
+
+  * Displays hiking trails across Saudi Arabia.
+  * Allows users to select a trail marker.
+  * Displays the trail starting point.
+  * Displays the user's current location with periodic updates.
+
+* **Trail Details**
+
+  * Displays trail description, region, difficulty, distance, duration, images, and safety tips.
+
+* **Trail Route Map**
+
+  * Displays the trail route with start and end points.
+
+* **Authentication**
+
+  * Registration.
+  * Login.
+  * Logout.
+  * Prompts guests to sign up when they try to save, rate, or review a trail.
+
+* **Favorites**
+
+  * Allows registered users to save and remove favorite trails.
+
+* **Reviews & Ratings**
+
+  * Displays reviews and average ratings.
+  * Allows registered users to submit ratings and comments.
+  * Allows users to edit or delete their own reviews.
+
+* **Completed Trails*
+
+
 # 4. API Specifications
 
 ## External APIs
