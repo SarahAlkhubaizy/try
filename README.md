@@ -1,4 +1,4 @@
-# 1. System Architecture
+<img width="2936" height="2658" alt="Browse, Search, and Filter Trails (Guest or Registered User)" src="https://github.com/user-attachments/assets/30003e53-bf69-404d-9038-580efd003008" /># 1. System Architecture
 
 ## Overview
 
@@ -593,6 +593,22 @@ The main front-end components are:
   * Allows users to edit or delete their own reviews.
 
 * **Completed Trails*
+
+# 3. High-Level Sequence Diagrams
+## 1. User Login
+<img width="2764" height="2316" alt="User Login" src="https://github.com/user-attachments/assets/c07c8f5b-81d0-4fc1-b239-8c1de3930eb5" />
+## 2. browse-search-filter-trails.png
+<img width="2936" height="2658" alt="Browse, Search, and Filter Trails (Guest or Registered User)" src="https://github.com/user-attachments/assets/21e4106f-e241-4fd3-8ed2-a3be59894b4f" />
+## 3. current-location-trail-map.png
+<img width="3165" height="2384" alt="View Current Location on the Trail Map" src="https://github.com/user-attachments/assets/58f7991e-6a1d-421b-ba10-8328bd77eb65" />
+## 4. rate-review-trail.png
+<img width="3164" height="2402" alt="Rate and Review a Trail" src="https://github.com/user-attachments/assets/239e3202-028c-4837-804a-d609d0022d17" />
+
+
+
+
+
+
 
 
 # 4. API Specifications
