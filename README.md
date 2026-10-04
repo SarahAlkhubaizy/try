@@ -131,7 +131,7 @@ Every technology in this architecture was chosen based on the team's functional 
 
 
 
-# Components, Classes, and Database Design
+#2. Components, Classes, and Database Design
 
 ## 1. Back-end Classes
 
