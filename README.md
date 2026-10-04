@@ -1068,3 +1068,107 @@ The main front-end components are:
 | 403 Forbidden | Not allowed (not the owner, not an admin, or account suspended) |
 | 404 Not Found | Resource not found |
 | 409 Conflict | Duplicate (email exists, or trail already saved, completed, or reviewed) |
+
+
+
+# 5. SCM and QA Strategies
+
+## 5.1 SCM Strategy
+
+### Version Control and Repository Structure
+
+We will use **Git** for version control and **GitHub** to host the code. The project uses a single repository (monorepo) that contains both the frontend and the backend, along with the technical documentation:
+
+```
+qimmah/
+├── frontend/     (Flutter app)
+├── backend/      (Flask API)
+├── docs/         (Technical documentation and diagrams)
+└── README.md
+```
+
+A single repository keeps the project simple for a team of four and makes it easier to review all changes, documentation, and issues in one place. Features that affect both the frontend and the backend, such as OTP verification or reviews, can be handled in a single pull request. Responsibilities between frontend and backend remain clearly separated through folders and feature branches. Tasks and user stories are tracked using **GitHub Issues** and **GitHub Projects**.
+
+### Branching Strategy
+
+We will follow a simple branching model:
+
+- **main**: contains stable, tested, production-ready code only. It is protected, and no one pushes to it directly. Code reaches main only by merging from develop after testing.
+- **develop**: the integration branch where all completed features are merged and tested together. The staging environment is deployed from this branch.
+- **feature/\***: a separate branch for each task or user story, created from develop and merged back into it through a pull request. Branch names describe the feature, for example `feature/trail-filter`, `feature/otp-verification`, and `feature/reviews`.
+- **fix/\***: a short branch for fixing a bug found during testing, created from develop and merged back into it.
+
+Workflow: a team member creates a feature branch from develop, works on the task, opens a pull request into develop, and merges it after review. At the end of each milestone, develop is tested on staging and then merged into main.
+
+### Commits
+
+- Team members commit small, focused changes regularly and push their work at least once a day while working on a task.
+- Commit messages follow a consistent format with a prefix that describes the type of change: `feat:` for new features, `fix:` for bug fixes, `docs:` for documentation, `test:` for tests, and `refactor:` for code improvements. Example: `feat: add region filter to trails endpoint`.
+- Sensitive data such as database passwords and email credentials are never committed. They are stored in a `.env` file that is listed in `.gitignore`.
+
+### Pull Requests
+
+- Every feature or fix branch is merged into develop through a pull request.
+- Each pull request includes a short description of the change and a link to the related user story or issue.
+- All automated checks (code style and tests) must pass before the pull request can be merged.
+
+### Code Reviews
+
+- Our team has four members, divided between frontend and backend.
+- Each pull request requires approval from at least one other team member before merging.
+- Backend changes are reviewed by a backend team member, and frontend changes are reviewed by a frontend team member, since they are most familiar with that part of the code.
+- Pull requests that change both frontend and backend require one approval from each side.
+- The reviewer checks that the code works as expected, follows the agreed style, includes tests where needed, and does not break existing features.
+
+## 5.2 QA Strategy
+
+### Testing Strategy
+
+Our testing strategy focuses automated tests on the backend, where the core logic, security, and data handling are located, and uses structured manual testing for the frontend, since the user interface changes frequently during MVP development.
+
+### Backend Testing
+
+- **Unit tests** using **pytest** to test individual functions and endpoints, such as password hashing, OTP generation and verification, input validation for reviews, and average rating calculation.
+- **Integration tests** using **pytest** with a separate test database, to check that the API and the database work together correctly (for example, creating a review and confirming it is saved and the trail's average rating is updated).
+- **Permission tests** to confirm each role can only do what it is allowed to: a guest cannot post reviews or save trails, a registered user can only edit or delete their own reviews, and only an admin can manage trails and suspend users.
+- **API testing** using **Postman**, with a shared collection of requests for all endpoints, including valid and invalid inputs.
+
+### Frontend Testing
+
+Manual testing on real Android and iOS devices using a test checklist of critical user flows:
+
+- Sign up with email OTP verification, log in, and log out
+- Browse, search, and filter trails as a guest
+- View trail details, the map, and safety tips
+- Guest is prompted to sign up when trying to review or save a trail
+- Add, edit, and delete a review as a registered user
+- Admin adds, edits, and deletes trails and removes reviews
+- Current location appears on the trail map, and the app works correctly when location permission is denied
+- Switching between Arabic and English, and between dark and light mode
+
+### Testing and Quality Tools
+
+- **pytest**: unit and integration tests for the Flask backend
+- **Postman**: API testing
+- **flake8**: code style checks for Python
+- **flutter analyze**: code quality checks for Dart
+- **GitHub Actions**: runs code style checks and tests automatically on every pull request
+- **GitHub Issues**: reporting and tracking bugs with a "bug" label and a priority level; bugs are fixed in a `fix/*` branch
+
+### Deployment Pipeline
+
+We will use **Docker** to package the backend, so that it runs the same way on every team member's machine and in every environment, and **Railway** to host the backend and the MySQL database. The Flutter mobile app is not containerized or hosted, as it is built and installed directly on devices.
+
+Our pipeline has three environments:
+
+- **Development**: each team member runs the Flask API and MySQL locally using **Docker Compose** (`docker compose up`), which gives everyone the same versions and settings.
+- **Staging**: a Railway environment connected to the **develop** branch, with its own MySQL database containing test data. When a pull request is merged into develop, GitHub Actions runs code style checks and all backend tests. If they pass, Railway automatically builds the backend from its Dockerfile and deploys it to staging. A test version of the app (APK) is then built and connected to the staging API, so the team can test it on real devices using the manual test checklist.
+- **Production**: a separate Railway environment connected to the **main** branch, with its own production MySQL database. After the staging version passes manual testing, develop is merged into main, and Railway automatically deploys the same tested code to production.
+
+Keeping staging and production as separate Railway environments with separate databases means that testing never affects real user data.
+
+### Quality Goals
+
+- All Must Have user stories have automated tests for their backend endpoints.
+- No pull request is merged with failing tests.
+- Critical bugs found during testing are fixed before merging develop into main.
