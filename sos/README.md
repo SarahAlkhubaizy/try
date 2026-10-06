@@ -187,6 +187,9 @@
 }
 ```
 
+> The email cannot be changed after verification. Only the name and password can be updated.
+
+
 **Output — 200 OK:** The updated user object.
 
 **Errors:** `400` invalid fields · `401` wrong current password
