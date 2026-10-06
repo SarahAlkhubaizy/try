@@ -150,7 +150,7 @@
 
 > The `role` field tells the app whether to show the admin panel.
 
-**Errors:** `401` invalid email or password · `403` email not verified, or account suspended (`isSuspended`)
+**Errors:** `401` invalid email or password · `403` email not verified (`isVerified`), or account suspended (`isSuspended`)
 
 ---
 
@@ -454,7 +454,7 @@
 
 **Output — 204 No Content**
 
-> Deleting a trail also deletes its reviews, favorites, and completed entries, and removes its photos from Cloudinary.
+> Deleting a trail also deletes its reviews, favorites, and completed entries (`ON DELETE CASCADE`), and removes its photos from Cloudinary.
 
 **Errors:** `404` trail not found
 
