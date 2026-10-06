@@ -4,13 +4,15 @@
 
 | API | Used By | Purpose | Why It Was Chosen |
 |---|---|---|---|
-| Google Maps SDK for Android / iOS (via `google_maps_flutter`) | Flutter app (hiker screens and admin panel) | Displays trails on the map, draws each trail's GeoJSON route with its starting point, and shows the user's current location (My Location layer). In the admin panel, it previews an uploaded GeoJSON route before saving. | Reliable map coverage of Saudi Arabia, custom markers, route lines, and a built-in current-location layer. Has an official Flutter package, and its monthly free usage covers the MVP. |
+| Google Maps SDK for Android / iOS (via `google_maps_flutter`) | Flutter app (hiker screens and admin panel) | Displays trails on the map, draws each trail's GeoJSON route with its start and end points, and shows the user's current location (My Location layer). | Reliable map coverage of Saudi Arabia, custom markers, route lines, and a built-in current-location layer. Has an official Flutter package, and its monthly free usage covers the MVP. |
 | Cloudinary Upload API (via `cloudinary` Python SDK) | Flask backend | Uploads trail photos and returns their URLs. Photos are served to the app via Cloudinary's CDN. | Free plan with no credit card required. Images are not lost when the server redeploys. Automatic resizing and CDN delivery make photos load fast on mobile. |
 | Email Service (SMTP via `Flask-Mail`) | Flask backend | Sends a one-time verification code (OTP) to the user's email during sign-up. | Confirms that each account uses a real email address the user owns, which reduces fake accounts. Flask-Mail integrates directly with Flask and works with standard SMTP email providers. |
 
-> **Device services (not external APIs):** the user's current location is read on the device with the `geolocator` Flutter package, only with the user's permission and only while the app is open. It is never sent to the server.
+> **Device and app packages (not external APIs):**
+> - `geolocator` reads the user's current location on the device, only with permission and only while the app is open. It is never sent to the server.
+> - `pinput` displays the 6-digit OTP input field on the email verification screen.
 >
-> **Data format (not an external API):** trail routes are stored and exchanged as **GeoJSON**. Each route is a `FeatureCollection` containing the trail path as a `LineString` and the starting point as a `Point`, stored in a MySQL JSON column. Coordinates follow the GeoJSON order `[longitude, latitude]`.
+> **Data format:** trail routes are stored as **GeoJSON** in the `routeCoordinates` JSON column. Each route is a `FeatureCollection` with the trail path as a `LineString`. Coordinates follow the GeoJSON order `[longitude, latitude]`.
 >
 > **API keys** are never shared publicly: the Google Maps key is restricted to Qimmah's app, and Cloudinary and email credentials are stored only on the server as environment variables.
 
@@ -19,46 +21,48 @@
 ### General Rules
 
 - **Base URL:** `https://<qimmah-backend>.up.railway.app/api` (hosted on Railway)
-- **Format:** All requests and responses use JSON, except admin trail uploads, which use `multipart/form-data` (to send files).
-- **Authentication:** Protected endpoints require a JWT in the header: `Authorization: Bearer <token>`
+- **Format:** All requests and responses use JSON, except trail creation and image uploads, which use `multipart/form-data` (to send files).
+- **Authentication:** Protected endpoints require a JWT in the header: `Authorization: Bearer <token>`. Tokens expire after 24 hours.
 - **Access levels:** 🌐 Guest (no account) · 🔒 Registered user · 🛠️ Admin only
 - **Admin access:** the admin uses the same Flutter app; admin screens appear only for accounts with the `admin` role, and every 🛠️ endpoint checks this role on the server.
-- **Common errors:** every 🔒 and 🛠️ endpoint returns `401` if the token is missing, expired, or revoked, and every 🛠️ endpoint returns `403` if the user is not an admin.
+- **Common errors:** every 🔒 and 🛠️ endpoint returns `401` if the token is missing or expired, `403` if the account is suspended, and every 🛠️ endpoint returns `403` if the user is not an admin.
 - **Error format:** `{ "error": "Error message" }`
 
 ### Endpoints Overview
 
-| # | Module | Method | URL Path | Access | Description | User Story |
+| # | Module | Method | URL Path | Access | Class Method (Task 2) | User Story |
 |---|---|---|---|---|---|---|
-| 1 | Auth | POST | `/api/auth/register` | 🌐 | Create an account and send a verification code | 1 |
-| 2 | Auth | POST | `/api/auth/verify-email` | 🌐 | Verify the email with the OTP code and receive a JWT | 1 |
-| 3 | Auth | POST | `/api/auth/resend-code` | 🌐 | Send a new verification code | 1 |
-| 4 | Auth | POST | `/api/auth/login` | 🌐 | Log in and receive a JWT | 2 |
-| 5 | Auth | POST | `/api/auth/logout` | 🔒 | Log out and revoke the token | 2 |
-| 6 | Users | GET | `/api/users/me` | 🔒 | Get the user's account information | 17 |
-| 7 | Users | PUT | `/api/users/me` | 🔒 | Edit account information | 17 |
-| 8 | Users | GET | `/api/users/me/favorites` | 🔒 | List favorite trails | 11 |
-| 9 | Users | POST | `/api/users/me/favorites` | 🔒 | Add a trail to favorites | 11 |
-| 10 | Users | DELETE | `/api/users/me/favorites/{trail_id}` | 🔒 | Remove a trail from favorites | 11 |
-| 11 | Users | GET | `/api/users/me/completed-trails` | 🔒 | List completed trails | 16 |
-| 12 | Users | POST | `/api/users/me/completed-trails` | 🔒 | Mark a trail as completed | 16 |
-| 13 | Users | DELETE | `/api/users/me/completed-trails/{trail_id}` | 🔒 | Unmark a completed trail | 16 |
-| 14 | Trails | GET | `/api/trails` | 🌐 | List trails with filters and search | 3, 4, 5, 8 |
-| 15 | Trails | GET | `/api/trails/{id}` | 🌐 | Get trail details, GeoJSON route, starting point, and safety tips | 6, 7, 18, 22 |
-| 16 | Reviews | GET | `/api/trails/{id}/reviews` | 🌐 | List a trail's reviews | 9 |
-| 17 | Reviews | POST | `/api/trails/{id}/reviews` | 🔒 | Rate and review a trail | 12 |
-| 18 | Reviews | PUT | `/api/reviews/{id}` | 🔒 | Edit own review | 13 |
-| 19 | Reviews | DELETE | `/api/reviews/{id}` | 🔒 / 🛠️ | Delete own review, or any review (admin) | 13, 15 |
-| 20 | Admin | POST | `/api/admin/trails` | 🛠️ | Add a new trail | 14 |
-| 21 | Admin | PUT | `/api/admin/trails/{id}` | 🛠️ | Edit a trail | 14 |
-| 22 | Admin | DELETE | `/api/admin/trails/{id}` | 🛠️ | Delete a trail | 14 |
-| 23 | Admin | GET | `/api/admin/reviews` | 🛠️ | List all reviews for moderation | 15 |
-| 24 | Admin | GET | `/api/admin/users` | 🛠️ | List users | 21 |
-| 25 | Admin | PATCH | `/api/admin/users/{id}/status` | 🛠️ | Suspend or reactivate a user | 21 |
+| 1 | Auth | POST | `/api/auth/register` | 🌐 | `User.register()` | 1 |
+| 2 | Auth | POST | `/api/auth/verify-email` | 🌐 | `User.verifyEmail()` | 1 |
+| 3 | Auth | POST | `/api/auth/resend-code` | 🌐 | `User.resendCode()` | 1 |
+| 4 | Auth | POST | `/api/auth/login` | 🌐 | `User.login()` | 2 |
+| 5 | Users | GET | `/api/users/me` | 🔒 | User attributes | 17 |
+| 6 | Users | PUT | `/api/users/me` | 🔒 | `User.updateProfile()` | 17 |
+| 7 | Users | GET | `/api/users/me/reviews` | 🔒 | `User.viewMyReviews()` | 13 |
+| 8 | Users | GET | `/api/users/me/favorites` | 🔒 | `User.viewFavorites()` | 11 |
+| 9 | Users | POST | `/api/users/me/favorites` | 🔒 | `User.addFavorite()` | 11 |
+| 10 | Users | DELETE | `/api/users/me/favorites/{trail_id}` | 🔒 | `User.removeFavorite()` | 11 |
+| 11 | Users | GET | `/api/users/me/completed-trails` | 🔒 | `User.viewCompletedTrails()` | 16 |
+| 12 | Users | POST | `/api/users/me/completed-trails` | 🔒 | `User.markTrailAsCompleted()` | 16 |
+| 13 | Users | DELETE | `/api/users/me/completed-trails/{trail_id}` | 🔒 | `CompletedTrail.removeCompletedTrail()` | 16 |
+| 14 | Trails | GET | `/api/trails` | 🌐 | `TrailService.searchByName()` · `filterByRegion()` · `filterByDifficulty()` | 3, 4, 5, 8 |
+| 15 | Trails | GET | `/api/trails/{id}` | 🌐 | `Trail.getDetails()` · `getRoute()` · `getSafetyTips()` | 6, 7, 18, 22 |
+| 16 | Reviews | GET | `/api/trails/{id}/reviews` | 🌐 | `ReviewService.getReviews()` · `calculateAverageRating()` | 9 |
+| 17 | Reviews | POST | `/api/trails/{id}/reviews` | 🔒 | `Review.addReview()` · `validateRating()` | 12 |
+| 18 | Reviews | PUT | `/api/reviews/{id}` | 🔒 | `Review.updateReview()` | 13 |
+| 19 | Reviews | DELETE | `/api/reviews/{id}` | 🔒 | `Review.deleteReview()` | 13 |
+| 20 | Admin | POST | `/api/admin/trails` | 🛠️ | `Admin.addTrail()` | 14 |
+| 21 | Admin | PUT | `/api/admin/trails/{id}` | 🛠️ | `Admin.updateTrail()` | 14 |
+| 22 | Admin | DELETE | `/api/admin/trails/{id}` | 🛠️ | `Admin.deleteTrail()` | 14 |
+| 23 | Admin | POST | `/api/admin/trails/{id}/images` | 🛠️ | `Admin.uploadTrailImages()` | 14 |
+| 24 | Admin | PUT | `/api/admin/trails/{id}/route` | 🛠️ | `Admin.updateTrailRoute()` | 14 |
+| 25 | Admin | DELETE | `/api/admin/reviews/{id}` | 🛠️ | `ReviewService.deleteInappropriateReview()` | 15 |
+| 26 | Admin | PATCH | `/api/admin/users/{id}/suspend` | 🛠️ | `Admin.suspendUser()` | 21 |
 
 > **Handled in the app, not the API:**
+> - **Story 2 (log out) — `User.logout()`:** the app deletes the JWT from secure storage, and the token also expires on its own after 24 hours.
 > - **Story 10 (guest sign-up prompt):** the app shows the prompt when a guest tries an action that needs a 🔒 endpoint.
-> - **Story 19 (share a trail):** the app shares the trail's link through the device's share menu (`share_plus`).
+> - **Story 19 (share a trail):** the app shares the trail's details through the device's share menu (`share_plus`).
 > - **Story 22 (current location):** the app reads the location on the device and draws it on the map over the route from endpoint 15.
 
 ---
@@ -84,13 +88,13 @@
 }
 ```
 
-> The account is created as unverified, and a 6-digit code is emailed to the user. The code expires after 10 minutes. No token is returned until the email is verified.
+> The account is created with `isVerified = false`. A 6-digit code is emailed to the user, stored as a hash in `otpCodeHash`, and expires after 10 minutes (`otpExpiresAt`). No token is returned until the email is verified.
 
 **Errors:** `400` missing or invalid fields · `409` email already registered
 
 #### 2. POST `/api/auth/verify-email` 🌐
 
-**Input (JSON):**
+**Input (JSON):** the code the user enters in the `pinput` field.
 ```json
 {
   "email": "sara@example.com",
@@ -106,6 +110,8 @@
 }
 ```
 
+> On success, `isVerified` becomes `true`. Each wrong code increases `otpAttempts`; after 5 wrong attempts, the user must request a new code.
+
 **Errors:** `400` wrong or expired code · `404` account not found · `429` too many wrong attempts
 
 #### 3. POST `/api/auth/resend-code` 🌐
@@ -120,7 +126,7 @@
 { "message": "A new verification code has been sent" }
 ```
 
-> A new code replaces the old one. Requests are limited (e.g., once per minute) to prevent abuse.
+> A new code replaces the old one and resets `otpAttempts`. Requests are limited to once per minute.
 
 **Errors:** `404` account not found · `409` email already verified · `429` requested too soon
 
@@ -144,24 +150,13 @@
 
 > The `role` field tells the app whether to show the admin panel.
 
-**Errors:** `401` invalid email or password · `403` email not verified, or account suspended
-
-#### 5. POST `/api/auth/logout` 🔒
-
-**Input:** JWT in header only.
-
-**Output — 200 OK:**
-```json
-{ "message": "Logged out successfully" }
-```
-
-> The token is added to a blocklist on the server so it can no longer be used, and the app deletes it from secure storage.
+**Errors:** `401` invalid email or password · `403` email not verified, or account suspended (`isSuspended`)
 
 ---
 
 ### Users Module
 
-#### 6. GET `/api/users/me` 🔒
+#### 5. GET `/api/users/me` 🔒
 
 **Output — 200 OK:**
 ```json
@@ -169,30 +164,42 @@
   "id": 12,
   "name": "Sara",
   "email": "sara@example.com",
-  "role": "user",
-  "favorites_count": 4,
-  "completed_trails_count": 2,
-  "reviews_count": 3
+  "role": "user"
 }
 ```
 
-#### 7. PUT `/api/users/me` 🔒
+#### 6. PUT `/api/users/me` 🔒
 
-**Input (JSON):** only the fields being changed. Changing the password requires the current password.
+**Input (JSON):** only the fields being changed.
 ```json
 {
   "name": "Sara A.",
-  "current_password": "StrongPass123",
-  "new_password": "NewStrongPass456"
+  "email": "sara.a@example.com"
 }
 ```
 
-> The email cannot be changed after verification. Only the name and password can be updated.
-
-
 **Output — 200 OK:** The updated user object.
 
-**Errors:** `400` invalid fields · `401` wrong current password
+> If the email is changed, `isVerified` becomes `false` and a new verification code is sent to the new email. The user verifies it with endpoint 2.
+
+**Errors:** `400` invalid fields · `409` email already used
+
+#### 7. GET `/api/users/me/reviews` 🔒
+
+**Output — 200 OK:**
+```json
+{
+  "reviews": [
+    {
+      "id": 31,
+      "trail": { "id": 7, "name": "مسار جبل السودة" },
+      "rating": 5,
+      "comment": "مسار رائع وإطلالات جميلة",
+      "created_at": "2026-10-01T09:30:00Z"
+    }
+  ]
+}
+```
 
 #### 8. GET `/api/users/me/favorites` 🔒
 
@@ -207,7 +214,7 @@
 
 **Output — 201 Created:**
 ```json
-{ "message": "Trail added to favorites", "trail_id": 7 }
+{ "message": "Trail added to favorites", "trail_id": 7, "created_at": "2026-10-01T12:00:00Z" }
 ```
 
 **Errors:** `404` trail not found · `409` already in favorites
@@ -250,13 +257,13 @@
 
 **Input (query parameters, all optional):**
 
-| Parameter | Type | Example | Description |
+| Parameter | Type | Example | Class Method |
 |---|---|---|---|
-| `region` | string | `asir` | Filter by region |
-| `difficulty` | string | `easy` · `moderate` · `hard` | Filter by difficulty |
-| `search` | string | `السودة` | Search by trail name |
-| `page` | integer | `1` | Page number |
-| `limit` | integer | `20` | Results per page |
+| `search` | string | `السودة` | `TrailService.searchByName()` |
+| `region` | string | `asir` | `TrailService.filterByRegion()` |
+| `difficulty` | string | `easy` · `moderate` · `hard` | `TrailService.filterByDifficulty()` |
+| `page` | integer | `1` | — |
+| `limit` | integer | `20` | — |
 
 **Example:** `GET /api/trails?region=asir&difficulty=moderate`
 
@@ -269,10 +276,9 @@
       "name": "مسار جبل السودة",
       "region": "asir",
       "difficulty": "moderate",
-      "distance_km": 8,
-      "duration": "3–4 ساعات",
-      "avg_rating": 4.8,
-      "reviews_count": 125,
+      "distance": 8,
+      "estimated_duration": "3–4 ساعات",
+      "average_rating": 4.8,
       "cover_image": "https://res.cloudinary.com/.../soudah.jpg",
       "start_point": { "lat": 18.2721, "lng": 42.3684 }
     }
@@ -281,6 +287,8 @@
   "total": 1
 }
 ```
+
+> `average_rating` is calculated with `ReviewService.calculateAverageRating()`.
 
 #### 15. GET `/api/trails/{id}` 🌐
 
@@ -291,18 +299,18 @@
 {
   "id": 7,
   "name": "مسار جبل السودة",
+  "description": "مسار جبلي يتميز بإطلالاته الطبيعية...",
   "region": "asir",
   "difficulty": "moderate",
-  "distance_km": 8,
-  "duration": "3–4 ساعات",
-  "description": "مسار جبلي يتميز بإطلالاته الطبيعية...",
-  "safety_tips": ["احمل كمية كافية من الماء", "ارتدِ حذاءً مناسبًا للمشي"],
+  "distance": 8,
+  "estimated_duration": "3–4 ساعات",
   "images": [
     "https://res.cloudinary.com/.../soudah-1.jpg",
     "https://res.cloudinary.com/.../soudah-2.jpg"
   ],
   "start_point": { "lat": 18.2721, "lng": 42.3684 },
-  "route_geojson": {
+  "end_point": { "lat": 18.2790, "lng": 42.3730 },
+  "route_coordinates": {
     "type": "FeatureCollection",
     "features": [
       {
@@ -312,23 +320,18 @@
           "type": "LineString",
           "coordinates": [[42.3684, 18.2721], [42.3701, 18.2745], [42.3730, 18.2790]]
         }
-      },
-      {
-        "type": "Feature",
-        "properties": { "name": "start" },
-        "geometry": { "type": "Point", "coordinates": [42.3684, 18.2721] }
       }
     ]
   },
-  "avg_rating": 4.8,
-  "reviews_count": 125,
-  "share_url": "https://<qimmah-domain>/trails/7",
+  "safety_tips": "احمل كمية كافية من الماء، وارتدِ حذاءً مناسبًا للمشي",
+  "average_rating": 4.8,
+  "created_at": "2026-09-20T10:00:00Z",
   "is_favorite": false,
   "is_completed": false
 }
 ```
 
-> `is_favorite` and `is_completed` are returned only when a valid JWT is sent. The app draws `route_geojson` on the map and shows the user's current location over it (story 22).
+> `is_favorite` and `is_completed` are returned only when a valid JWT is sent. The app draws `route_coordinates` with the start and end points on the map, and shows the user's current location over it (story 22).
 
 **Errors:** `404` trail not found
 
@@ -343,14 +346,14 @@
 **Output — 200 OK:**
 ```json
 {
+  "average_rating": 4.8,
   "reviews": [
     {
       "id": 31,
       "user": { "id": 12, "name": "Sara" },
       "rating": 5,
       "comment": "مسار رائع وإطلالات جميلة",
-      "created_at": "2026-10-01T09:30:00Z",
-      "updated_at": null
+      "created_at": "2026-10-01T09:30:00Z"
     }
   ],
   "page": 1,
@@ -375,12 +378,13 @@
   "trail_id": 7,
   "rating": 5,
   "comment": "مسار رائع وإطلالات جميلة",
-  "created_at": "2026-10-01T09:30:00Z",
-  "trail_avg_rating": 4.8
+  "created_at": "2026-10-01T09:30:00Z"
 }
 ```
 
-**Errors:** `400` rating not 1–5 or empty comment · `404` trail not found · `409` already reviewed this trail
+> `Review.validateRating()` checks that the rating is between 1 and 5.
+
+**Errors:** `400` rating not 1–5 or empty comment · `404` trail not found
 
 #### 18. PUT `/api/reviews/{id}` 🔒
 
@@ -392,17 +396,17 @@
 }
 ```
 
-**Output — 200 OK:** The updated review, with the trail's new average rating.
+**Output — 200 OK:** The updated review.
 
 **Errors:** `400` invalid input · `403` not the review's owner · `404` review not found
 
-#### 19. DELETE `/api/reviews/{id}` 🔒 / 🛠️
+#### 19. DELETE `/api/reviews/{id}` 🔒
 
 **Output — 204 No Content**
 
-> A user can delete only their own reviews; an admin can delete any review. The trail's average rating is recalculated after deletion.
+> A user can delete only their own reviews. Admins delete inappropriate reviews with endpoint 25.
 
-**Errors:** `403` not the owner and not an admin · `404` review not found
+**Errors:** `403` not the review's owner · `404` review not found
 
 ---
 
@@ -415,13 +419,15 @@
 | Field | Type | Required | Description |
 |---|---|---|---|
 | `name` | text | ✅ | Trail name |
+| `description` | text | ✅ | Trail description |
 | `region` | text | ✅ | Region code |
 | `difficulty` | text | ✅ | `easy` · `moderate` · `hard` |
-| `distance_km` | number | ✅ | Distance in km |
-| `duration` | text | ✅ | Estimated duration |
-| `description` | text | ✅ | Trail description |
-| `safety_tips` | text (JSON array) | ❌ | Safety tips |
-| `route_file` | file (.geojson) | ✅ | Route as a LineString, with the starting point as a Point |
+| `distance` | number | ✅ | Distance in km |
+| `estimated_duration` | text | ✅ | Estimated duration |
+| `start_latitude` / `start_longitude` | number | ✅ | Starting point |
+| `end_latitude` / `end_longitude` | number | ✅ | End point |
+| `route_file` | file (.geojson) | ✅ | Trail route as a LineString |
+| `safety_tips` | text | ❌ | Safety tips |
 | `images` | file(s) | ✅ | Trail photos (uploaded to Cloudinary) |
 
 **Output — 201 Created:**
@@ -438,11 +444,11 @@
 
 #### 21. PUT `/api/admin/trails/{id}` 🛠️
 
-**Input (`multipart/form-data`):** same fields as endpoint 20; only the changed fields are sent.
+**Input (JSON):** the trail information fields being changed (same fields as endpoint 20, without files).
 
 **Output — 200 OK:** The updated trail object.
 
-**Errors:** `400` invalid data or GeoJSON · `404` trail not found
+**Errors:** `400` invalid data · `404` trail not found
 
 #### 22. DELETE `/api/admin/trails/{id}` 🛠️
 
@@ -452,58 +458,54 @@
 
 **Errors:** `404` trail not found
 
-#### 23. GET `/api/admin/reviews` 🛠️
+#### 23. POST `/api/admin/trails/{id}/images` 🛠️
 
-**Input (query, optional):** `trail_id`, `page`, `limit`
+**Input (`multipart/form-data`):** `images` — one or more photo files.
 
-**Output — 200 OK:**
+**Output — 201 Created:**
 ```json
 {
-  "reviews": [
-    {
-      "id": 31,
-      "trail": { "id": 7, "name": "مسار جبل السودة" },
-      "user": { "id": 12, "name": "Sara" },
-      "rating": 5,
-      "comment": "مسار رائع وإطلالات جميلة",
-      "created_at": "2026-10-01T09:30:00Z"
-    }
-  ],
-  "page": 1,
-  "total": 340
+  "trail_id": 7,
+  "images": [
+    "https://res.cloudinary.com/.../soudah-1.jpg",
+    "https://res.cloudinary.com/.../soudah-3.jpg"
+  ]
 }
 ```
 
-> To delete a review, the admin uses endpoint 19.
+**Errors:** `400` invalid file type · `404` trail not found
 
-#### 24. GET `/api/admin/users` 🛠️
+#### 24. PUT `/api/admin/trails/{id}/route` 🛠️
 
-**Input (query, optional):** `search`, `page`, `limit`
+**Input (`multipart/form-data`):** `route_file` — a `.geojson` file with the trail route as a LineString.
 
 **Output — 200 OK:**
 ```json
-{
-  "users": [
-    { "id": 12, "name": "Sara", "email": "sara@example.com", "reviews_count": 3, "is_verified": true, "is_suspended": false }
-  ],
-  "page": 1,
-  "total": 1
-}
+{ "trail_id": 7, "message": "Route updated" }
 ```
 
-#### 25. PATCH `/api/admin/users/{id}/status` 🛠️
+> The app previews the new route on Google Maps before the admin saves it.
 
-**Input (JSON):**
-```json
-{ "is_suspended": true }
-```
+**Errors:** `400` invalid GeoJSON · `404` trail not found
+
+#### 25. DELETE `/api/admin/reviews/{id}` 🛠️
+
+**Output — 204 No Content**
+
+> Admins can delete any inappropriate review directly from the trail's reviews list.
+
+**Errors:** `404` review not found
+
+#### 26. PATCH `/api/admin/users/{id}/suspend` 🛠️
+
+**Input:** User ID in the URL path. No body.
 
 **Output — 200 OK:**
 ```json
 { "id": 12, "is_suspended": true }
 ```
 
-> A suspended user cannot log in, and their existing tokens are rejected.
+> The admin suspends a user from the author of an inappropriate review. A suspended user cannot log in, and the server checks `isSuspended` on every request, so their existing token is rejected immediately.
 
 **Errors:** `404` user not found
 
@@ -516,9 +518,9 @@
 | 200 OK | Request succeeded |
 | 201 Created | New resource created |
 | 204 No Content | Deleted successfully, no body |
-| 400 Bad Request | Invalid input, or wrong or expired verification code |
-| 401 Unauthorized | Missing, invalid, expired, or revoked token |
+| 400 Bad Request | Invalid input, invalid GeoJSON, or wrong or expired verification code |
+| 401 Unauthorized | Missing or expired token |
 | 403 Forbidden | Not allowed (not the owner, not an admin, email not verified, or account suspended) |
 | 404 Not Found | Resource not found |
-| 409 Conflict | Duplicate (email exists, email already verified, or trail already in favorites, completed, or reviewed) |
+| 409 Conflict | Duplicate (email exists, email already verified, or trail already in favorites or completed) |
 | 429 Too Many Requests | Too many verification attempts or code requests |
