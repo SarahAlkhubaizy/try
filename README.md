@@ -31,8 +31,8 @@ Qimmah follows a **layered architecture** with three layers — **Presentation**
 | Component | Technology | Role |
 |---|---|---|
 | API modules | Flask Blueprints | Receives HTTP requests and returns JSON. Organized into five modules: **Auth**, **Users** (including favorites and completed trails), **Trails**, **Reviews**, and **Admin**. |
-| Auth & Security | Flask-JWT-Extended, Werkzeug | Issues JWTs on login (valid for 24 hours), verifies them on protected routes, checks the `admin` role on admin routes, and rejects suspended users on every request. Passwords and OTP codes are hashed with Werkzeug. |
-| Business logic | TrailService, ReviewService | Search and filtering, rating validation (1–5), average rating calculation, review ownership checks, OTP verification, and GeoJSON validation. |
+| Auth & Security | Flask-JWT-Extended, Werkzeug, Flask-Mail | Handles sign-up with email verification: sends the OTP code by email, checks it, and marks the email as verified. Issues JWTs on login (valid for 24 hours), verifies them on protected routes, checks the `admin` role on admin routes, and rejects suspended users on every request. Passwords and OTP codes are hashed with Werkzeug. |
+| Business logic | TrailService, ReviewService | Search and filtering, rating validation (1–5), average rating calculation, review ownership checks, and GeoJSON validation. |
 | Data access | SQLAlchemy ORM | Maps Python classes (User, Trail, Review, Favorite, CompletedTrail) to MySQL tables and builds safe, parameterized SQL queries. |
 
 ### 3. Data Layer — MySQL on Railway
@@ -61,7 +61,7 @@ Steps describing how data moves through the layers, covering the key use cases i
 | 2 | Business | The Auth module gets the user record from MySQL. |
 | 3 | Business | The backend verifies the password hash, and checks that the email is verified (`isVerified`) and the account is not suspended (`isSuspended`). |
 | 4 | Business | The backend returns a JWT and the user's role. |
-| 5 | Presentation | The app stores the token securely and opens Home, showing the admin panel only if the role is `admin`. |
+| 5 | Presentation | The app stores the token securely and opens Home, showing the admin panel only if the role is `admin`. If the email is not verified, the app opens the verification screen, where the user enters the code with `pinput`. |
 
 ### Use Case 2: Browse, Search, and Filter Trails
 
