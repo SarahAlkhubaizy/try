@@ -89,59 +89,6 @@ User stories for **Qimmah (قمة)**, a hiking-trails discovery app in Saudi Ara
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 # 1. System Architecture
 
 ## Overview
@@ -152,7 +99,7 @@ The architecture follows a **layered model** — Presentation (Flutter), Busines
 
 ## Architecture Diagram
 
-<img width="1600" height="1600" alt="WhatsApp Image 2026-10-07 at 8 04 21 PM" src="https://github.com/user-attachments/assets/9c6a960e-6b64-48ab-8e45-4cdff25a6f6f" />
+<img width="1600" height="1600" alt="WhatsApp Image 2026-10-07 at 8 04 21 PM" src="https://github.com/user-attachments/assets/fcccc75f-1cb6-4611-850d-e678b49742da" />
 
 > All app data flows through the Flask API. Maps and images load directly in the app. Dashed borders mark external services.
 
@@ -166,7 +113,7 @@ The architecture follows a **layered model** — Presentation (Flutter), Busines
 | ORM | SQLAlchemy | Maps Python classes (User, Trail, Review, Favorite, CompletedTrail) to MySQL tables and builds safe, parameterized SQL queries. |
 | Database | MySQL on Railway | Stores all application data: users (including email verification data), trails, reviews, favorites, and completed trails. Uses relational tables with foreign key constraints to enforce data integrity, and utf8mb4 for Arabic text. Each trail's route is stored as GeoJSON in the `routeCoordinates` JSON column. |
 | Auth Layer | JWT (Flask-JWT-Extended) | Manages stateless authentication. Issues tokens on login (valid for 24 hours) and verifies identity on protected routes. Supports 3 roles: Guest, Registered User, and Admin. Rejects suspended users on every request. Passwords and OTP codes are hashed with Werkzeug. |
-| Email Verification | Flask-Mail (backend) + pinput (app) | The backend emails a 6-digit OTP code during sign-up, and the app displays the code input field with `pinput`. The account is activated after the correct code is entered. |
+| Email Verification | Resend Email API (backend) + pinput (app) | The backend sends a 6-digit OTP code to the user's email through the Resend API during sign-up, and the app displays the code input field with `pinput`. The account is activated after the correct code is entered. |
 | Image Storage | Cloudinary | Stores and serves trail photos. Provides CDN delivery and automatic optimization. |
 | Map Service | Google Maps SDK (google_maps_flutter) | Displays trails on the map, draws each trail's route with its start and end points, and shows the user's current location. |
 | Device Location | geolocator | Reads the user's current location with permission, updated periodically while the app is open. The location stays on the device and is never sent to the server. |
@@ -228,7 +175,7 @@ Steps describing how data moves through the system, covering the four key use ca
 |---|---|
 | Development | Local machines — each developer runs the Flask API and MySQL locally, and runs the Flutter app on an emulator or device. |
 | Staging | Pre-production environment on Railway with sample trail data, used for testing before release. |
-| Production | The Flask API and MySQL database are deployed on Railway. The mobile app is distributed as an Android APK / iOS test build. Secret keys (database, JWT, Cloudinary, email) are stored as environment variables on Railway, never in the code. |
+| Production | The Flask API and MySQL database are deployed on Railway. The mobile app is distributed as an Android APK / iOS test build. Secret keys (database, JWT, Cloudinary, Resend) are stored as environment variables on Railway, never in the code. |
 
 ## Technical Justifications
 
@@ -243,7 +190,7 @@ Every technology in this architecture was chosen based on the team's functional 
 | MySQL | Database | A relational database was chosen over a non-relational one for Qimmah's core data model.<br><br>MySQL (relational — interconnected tables) enforces strong relationships between users, trails, reviews, favorites, and completed trails, and guarantees data integrity (e.g., a review cannot exist without a valid user and trail). Foreign key constraints prevent orphaned or invalid records.<br><br>MongoDB (non-relational — JSON documents) was considered but not selected, as it does not enforce relational integrity by default. MySQL's JSON column type still stores GeoJSON routes. |
 | GeoJSON | Route Data Format | An open standard for geographic data. Routes recorded with GPS tools can be uploaded as files and drawn on the map without conversion. |
 | JWT | Authentication | Stateless authentication eliminates the need for session management on the server. JWT tokens support role-based access control for 3 user types: Guest, Registered User, and Admin. Tokens expire after 24 hours, and logout removes the token from the device. |
-| Email OTP (Flask-Mail + pinput) | Email Verification | Verifying the email at sign-up confirms the user owns the address and reduces fake accounts. `pinput` provides a clear 6-digit code input in the app. |
+| Email OTP (Resend + pinput) | Email Verification | Verifying the email at sign-up confirms the user owns the address and reduces fake accounts. Resend sends emails through an HTTPS API with an official Python SDK, which works on Railway (Railway blocks SMTP on non-Pro plans), and its free plan covers the MVP. `pinput` provides a clear 6-digit code input in the app. |
 | Google Maps SDK | Map Service | Provides reliable map coverage of Saudi Arabia, route lines, and a built-in current-location layer, with an official Flutter package. |
 | geolocator | Device Location | Reads the device location on Android and iOS with permission handling. Updating only while the app is open keeps the feature simple and saves battery. |
 | Cloudinary | Image Hosting | Provides a free-tier CDN for image storage and delivery, with no credit card required. Photos are not lost when the server redeploys, and they are optimized automatically for mobile. |
@@ -259,6 +206,55 @@ Every technology in this architecture was chosen based on the team's functional 
 | Maintainability | Separation of concerns: the presentation, business, and data layers are fully decoupled, and each layer can be updated independently. Flask Blueprints keep each backend module independent. |
 | Usability | Arabic-first, right-to-left interface with simple navigation and an option to switch to English. Guests can browse all trails without an account, and are prompted to sign up only when they try to save, rate, or review. |
 | Battery Efficiency | The location updates periodically and only while the app is open. |
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
