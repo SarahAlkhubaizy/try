@@ -68,7 +68,7 @@ User stories for **Qimmah (قمة)**, a hiking-trails discovery app in Saudi Ara
 
 
 
-<img width="1254" height="1254" alt="WhatsApp Image 2026-10-08 at 2 48 52 PM" src="https://github.com/user-attachments/assets/d4e80081-5449-46ab-bf7b-8fbfa2338e6b" />
+<img width="1046" height="1028" alt="WhatsApp Image 2026-10-08 at 2 51 06 PM" src="https://github.com/user-attachments/assets/3faba557-fe05-4aca-a002-73cf3062031c" />
 
 
 
