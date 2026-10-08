@@ -753,7 +753,17 @@ The main front-end components are:
   * Allows admins to suspend users.
  
 
+# 3. Create High-Level Sequence Diagrams
+<img width="1600" height="1600" alt="WhatsApp Image 2026-10-07 at 8 18 05 PM" src="https://github.com/user-attachments/assets/c437fec7-1a3d-4d0e-a569-6b74f123d2ee" />
 
+<img width="1600" height="1600" alt="WhatsApp Image 2026-10-07 at 8 18 06 PM" src="https://github.com/user-attachments/assets/df8cb45f-b300-4e19-a142-b6684dca10d5" />
+
+
+<img width="1600" height="1600" alt="WhatsApp Image 2026-10-07 at 8 18 06 PM (1)" src="https://github.com/user-attachments/assets/0d471572-dc33-4c60-b4f1-6e631f88397c" />
+
+
+
+<img width="1600" height="1600" alt="WhatsApp Image 2026-10-07 at 8 18 06 PM (2)" src="https://github.com/user-attachments/assets/4b99fe41-2c2a-464a-97a8-ae37bd30c183" />
 
 
 
