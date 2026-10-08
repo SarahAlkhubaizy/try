@@ -145,7 +145,7 @@ The architecture follows a **layered model** — Presentation (Flutter), Busines
 
 ## Architecture Diagram
 
-![Qimmah System Architecture](images/qimmah-system-architecture.png)
+<img width="1600" height="1600" alt="WhatsApp Image 2026-10-07 at 8 04 21 PM" src="https://github.com/user-attachments/assets/9c6a960e-6b64-48ab-8e45-4cdff25a6f6f" />
 
 > All app data flows through the Flask API. Maps and images load directly in the app. Dashed borders mark external services.
 
