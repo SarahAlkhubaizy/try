@@ -773,13 +773,6 @@ The main front-end components are:
 
 
 
-
-
-
-
-
-
-
 # 4. API Specifications
 
 ## External APIs
@@ -788,7 +781,7 @@ The main front-end components are:
 |---|---|---|---|
 | Google Maps SDK for Android / iOS (via `google_maps_flutter`) | Flutter app (hiker screens and admin panel) | Displays trails on the map, draws each trail's GeoJSON route with its start and end points, and shows the user's current location (My Location layer). | Reliable map coverage of Saudi Arabia, custom markers, route lines, and a built-in current-location layer. Has an official Flutter package, and its monthly free usage covers the MVP. |
 | Cloudinary Upload API (via `cloudinary` Python SDK) | Flask backend | Uploads trail photos and returns their URLs. Photos are served to the app via Cloudinary's CDN. | Free plan with no credit card required. Images are not lost when the server redeploys. Automatic resizing and CDN delivery make photos load fast on mobile. |
-| Email Service (SMTP via `Flask-Mail`) | Flask backend | Sends a one-time verification code (OTP) to the user's email during sign-up. | Confirms that each account uses a real email address the user owns, which reduces fake accounts. Flask-Mail integrates directly with Flask and works with standard SMTP email providers. |
+| Resend Email API (via `resend` Python SDK) | Flask backend | Sends a one-time verification code (OTP) to the user's email during sign-up. | Confirms that each account uses a real email address the user owns, which reduces fake accounts. Resend sends emails over an HTTPS API, which works on Railway (Railway blocks SMTP on non-Pro plans). It has an official Python SDK, and its free plan covers the MVP. |
 
 > **Device and app packages (not external APIs):**
 > - `geolocator` reads the user's current location on the device, only with permission and only while the app is open. It is never sent to the server.
@@ -796,7 +789,7 @@ The main front-end components are:
 >
 > **Data format:** trail routes are stored as **GeoJSON** in the `routeCoordinates` JSON column. Each route is a `FeatureCollection` with the trail path as a `LineString`. Coordinates follow the GeoJSON order `[longitude, latitude]`.
 >
-> **API keys** are never shared publicly: the Google Maps key is restricted to Qimmah's app, and Cloudinary and email credentials are stored only on the server as environment variables.
+> **API keys** are never shared publicly: the Google Maps key is restricted to Qimmah's app, and the Cloudinary and Resend API keys are stored only on the server as environment variables.
 
 ## Internal API (Flask REST API)
 
@@ -871,7 +864,7 @@ The main front-end components are:
 }
 ```
 
-> The account is created with `isVerified = false`. A 6-digit code is emailed to the user, stored as a hash in `otpCodeHash`, and expires after 10 minutes (`otpExpiresAt`). No token is returned until the email is verified.
+> The account is created with `isVerified = false`. A 6-digit code is sent to the user's email through Resend, stored as a hash in `otpCodeHash`, and expires after 10 minutes (`otpExpiresAt`). No token is returned until the email is verified.
 
 **Errors:** `400` missing or invalid fields · `409` email already registered
 
@@ -1307,6 +1300,25 @@ The main front-end components are:
 | 404 Not Found | Resource not found |
 | 409 Conflict | Duplicate (email exists, email already verified, or trail already in favorites or completed) |
 | 429 Too Many Requests | Too many verification attempts or code requests |
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ |
 
 
 
